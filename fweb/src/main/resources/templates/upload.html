@@ -1,0 +1,27 @@
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+   <form action="upload"  enctype="multipart/form-data" method="post">
+     <input type="file"  name="pictureFile"  class="form-control" />
+     <input  type="submit"  value="上传" />
+   </form>
+
+   <script th:inline="javascript">
+       var int=self.setInterval("check()",500);
+       function check() {
+           var httpRequest = new XMLHttpRequest();//第一步：建立所需的对象
+           var url = 'countPercent';
+           httpRequest.open('GET', url, true);//第二步：打开连接
+           httpRequest.send();//第三步：发送请求
+           /**
+            * 获取数据后的处理程序
+            */
+           httpRequest.onreadystatechange = function () {
+               if (httpRequest.readyState == 4 && httpRequest.status == 200) {
+                   var json = httpRequest.responseText;//获取到json字符串，还需解析
+                   console.log(json);
+               }
+           };
+       }
+   </script>
+</body>
+</html>

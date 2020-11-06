@@ -1,0 +1,51 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+
+</head>
+<body>
+<div class="container">
+    <div class="starter-template">
+        <h1>QrCodeImage</h1>
+        <div id="code" th:text="${ownCode}"></div>
+        <input type="button" th:onclick="'javascript:check()'" value="check">
+    </div>
+</div>
+<div class="container">
+    <img alt="qrcode" th:src="@{'/qrimage'}" />
+    <footer>
+        <p>
+            © <a >ThinkingInGIS</a> 2019
+        </p>
+    </footer>
+</div>
+
+<script th:inline="javascript">
+    var int=self.setInterval("check()",10000);
+    function check() {
+        var code = [[${ownCode}]]
+        //var code = document.getElementById('code');
+        var httpRequest = new XMLHttpRequest();//第一步：建立所需的对象
+        var url = 'checkInfo'+'?code='+code;
+        httpRequest.open('GET', url, true);//第二步：打开连接
+        httpRequest.send();//第三步：发送请求
+        /**
+         * 获取数据后的处理程序
+         */
+        httpRequest.onreadystatechange = function () {
+            if (httpRequest.readyState == 4 && httpRequest.status == 200) {
+                var json = httpRequest.responseText;//获取到json字符串，还需解析
+                console.log(json);
+                //alert(json)
+                if(json=='fail'){
+                    alert("fail")
+                }else {
+                    alert(json)
+                    window.location.href="http://192.168.0.111:8080/book";
+                }
+            }
+        };
+    }
+</script>
+</body>
+</html>

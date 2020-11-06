@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head lang="en" xmlns:th="http://www.thymeleaf.org">
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<table >
+    <thead>
+    <tr>
+        <th>图片</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="item:${pictures}">
+        <img th:src="${item.path}">
+        <form action="updatePicture"  enctype="multipart/form-data" method="post">
+            <input type="hidden" name="id" th:value="${item.id }" >
+            <input type="file"  name="pictureFile"  />
+            <input  type="submit"  value="修改" />
+        </form>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

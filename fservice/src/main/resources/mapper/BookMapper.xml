@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chr.fservice.mapper.BookMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.chr.fservice.entity.Book">
+        <id column="book_id" property="bookId" />
+        <result column="book_no" property="bookNo" />
+        <result column="book_name" property="bookName" />
+        <result column="book_state" property="bookState" />
+    </resultMap>
+    <select id="test" resultType="com.chr.fservice.entity.Book">
+        SELECT *
+        FROM book
+    </select>
+
+    <select id="testView" resultType="com.chr.fservice.entity.SimpleBook">
+        SELECT *
+        FROM test
+    </select>
+
+</mapper>
