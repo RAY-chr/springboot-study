@@ -4,6 +4,7 @@ import com.chr.fservice.entity.Book;
 import com.chr.fservice.pool.CommonStoragePool;
 import com.chr.fservice.quartz.QuartzJobHandle;
 import com.chr.fservice.service.IBookService;
+import com.chr.fservice.service.kafka.MessagingService;
 import com.chr.fweb.config.Verify;
 import com.chr.fweb.netty.HttpServerHandler;
 import com.google.zxing.BarcodeFormat;
@@ -50,6 +51,9 @@ public class QrcodeController {
 
     @Autowired
     private QuartzJobHandle quartzJobHandle;
+
+    @Autowired
+    private MessagingService messagingService;
 
     @Autowired
     private CommonStoragePool<String> pool;
@@ -238,6 +242,13 @@ public class QrcodeController {
         for (int i = 0; i < 10; i++) {
             intPool.add(i);
         }
+        return "success";
+    }
+
+    @RequestMapping("/kafka")
+    @ResponseBody
+    public String kafka() throws Exception {
+        messagingService.send("topic_registration","test");
         return "success";
     }
 

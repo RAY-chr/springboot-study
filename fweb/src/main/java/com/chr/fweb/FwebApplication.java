@@ -13,7 +13,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
  * @since 2020/5/3
  */
 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class}) //禁用springboot默认加载数据源配置
- @ComponentScan(basePackages = {"com.chr.fservice","com.chr.fweb"})
+@ComponentScan(basePackages = {"com.chr.fservice","com.chr.fweb"})
 @MapperScan("com.chr.fservice.mapper")
 @EnableAsync
 public class FwebApplication {

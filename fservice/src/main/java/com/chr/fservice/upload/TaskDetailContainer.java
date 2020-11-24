@@ -3,6 +3,7 @@ package com.chr.fservice.upload;
 import com.chr.fservice.SpringUtil;
 import com.chr.fservice.service.IBookService;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
@@ -42,7 +43,19 @@ public class TaskDetailContainer {
         List<UploadTask> tasks = getList(x -> x.getSource().equalsIgnoreCase(source)
                 && !x.getPercent().equals("100.00%"));
         if (tasks.size() >= 1) {
-            tasks.get(0).setCanceled(true);
+            UploadTask task = tasks.get(0);
+            // 任务暂停了再取消，直接删除本地文件即可
+            if (task.isPaused()) {
+                task.setCanceled(true);
+                String target = task.getTarget();
+                File file = new File(target);
+                if (file != null) {
+                    file.delete();
+                    System.out.println("delete the file [" + target + "]");
+                }
+            } else {
+                task.setCanceled(true);
+            }
         }
     }
 

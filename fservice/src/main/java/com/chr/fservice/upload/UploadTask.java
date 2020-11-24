@@ -28,7 +28,7 @@ public class UploadTask implements Runnable {
     private String source = "";
     private InputStream inputStream;
     private String target;
-    private volatile int currLength;
+    private volatile long currLength;
     private volatile long totalLength;
     private volatile String percent = "0%";
     private volatile boolean canceled = false;
@@ -220,8 +220,8 @@ public class UploadTask implements Runnable {
         this.pausedPosition = pausedPosition;
     }
 
-    public String count(int first, long other) {
-        Long x = new Long(first), y = new Long(other);
+    public String count(long first, long other) {
+        Long x = first, y = other;
         String result = String.format("%.2f", ((x.doubleValue() / y.doubleValue()) * 100)) + "%";
         return result;
     }

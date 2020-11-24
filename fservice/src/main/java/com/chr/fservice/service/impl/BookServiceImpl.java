@@ -10,18 +10,15 @@ import com.chr.fservice.service.IBookService;
 import com.chr.fservice.upload.TaskDetailContainer;
 import com.chr.fservice.upload.UploadTask;
 import com.chr.fservice.upload.ftp.FTPUtil;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.net.ftp.FTPClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
+import java.util.Random;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
@@ -121,7 +118,8 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements IB
     }
 
     public String addTask(String source, String targetprefix, String batchNo) {
-        String target = targetprefix + System.currentTimeMillis() + source.substring(source.lastIndexOf("/") + 1);
+        String target = targetprefix + System.currentTimeMillis() + getRandNum(6)
+                + source.substring(source.lastIndexOf("/") + 1);
         UploadTask task = new UploadTask(source, target, batchNo);
         return this.addTask0(task);
     }
@@ -145,6 +143,20 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements IB
             }
         }
         return "success";
+    }
+
+    public static String getRandNum(int charCount) {
+        String charValue = "";
+        for (int i = 0; i < charCount; i++) {
+            char c = (char) (randomInt(0, 10) + '0');
+            charValue += String.valueOf(c);
+        }
+        return charValue;
+    }
+
+    public static int randomInt(int from, int to) {
+        Random r = new Random();
+        return from + r.nextInt(to - from);
     }
 
 }

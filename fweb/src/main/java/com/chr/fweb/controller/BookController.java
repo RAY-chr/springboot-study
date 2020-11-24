@@ -232,8 +232,8 @@ public class BookController {
     @ResponseBody
     public List<String> ftpList() throws IOException {
         FTPClient ftpClient = ftpUtil.getFtpClient();
-        List<String> files = ftpUtil.getAbsolutePathFiles("/test/", null);
-        System.out.println(ftpUtil.mkdirs("/test/2021/21", ftpClient));
+        List<String> files = ftpUtil.getAbsolutePathFiles("/", null);
+        //System.out.println(ftpUtil.mkdirs("/test/2021/21", ftpClient));
         return files;
     }
 
