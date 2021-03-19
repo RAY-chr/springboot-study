@@ -46,6 +46,8 @@ public class NettyBooter implements ApplicationRunner {
                 "1", "0/10 * * * * ?");
         quartzJobHandle.addJob("com.chr.fservice.quartz.job.DataCompareJob",
                 "1", "0/30 * * * * ?");
+        quartzJobHandle.addJob("com.chr.fservice.quartz.job.TestJob",
+                "1", "0/5 * * * * ?");
         httpServer.start();
     }
 }

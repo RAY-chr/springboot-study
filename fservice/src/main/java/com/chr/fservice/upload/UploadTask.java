@@ -118,9 +118,9 @@ public class UploadTask implements Runnable {
         } catch (Exception e) {
             e.printStackTrace();
             if (e instanceof IOException) {
-                paused = true;
+                canceled = true;
                 pausedPosition = currLength - read;
-                logger.warn("[{}] caught exception, paused = {}, pausedPosition = {}", source, paused, pausedPosition);
+                logger.warn("[{}] caught exception, canceled = {}, pausedPosition = {}", source, canceled, pausedPosition);
             }
         } finally {
             try {
