@@ -91,7 +91,17 @@ public class FTPUtil {
         return list;
     }
 
+    /**
+     * 调用FTPClient.enterLocalPassiveMode();这个方法的意思就是每次数据连接之前，
+     * ftp client告诉ftp server开通一个端口来传输数据。为什么要这样做呢，
+     * 因为ftp server可能每次开启不同的端口来传输数据，但是在linux上，由于安全限制，可能某些端口没有开启，所以就出现阻塞
+     * @param remote
+     * @param list
+     * @param ftpClient
+     * @throws IOException
+     */
     private void getAbsolutePathFiles0(String remote, List<String> list, FTPClient ftpClient) throws IOException {
+        ftpClient.enterLocalPassiveMode();
         FTPFile[] files = ftpClient.listFiles(remote);
         for (FTPFile file : files) {
             if (file.isFile()) {

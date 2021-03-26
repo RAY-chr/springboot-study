@@ -6,6 +6,7 @@ import com.chr.fservice.entity.Task;
 import com.chr.fservice.quartz.job.HelloJob;
 import com.chr.fservice.service.ITaskService;
 import com.chr.fservice.upload.ftp.FTPUtil;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.io.SocketInputStream;
 import org.apache.commons.net.io.SocketOutputStream;
@@ -117,25 +118,25 @@ public class UploadTask implements Runnable {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            canceled = true;
             if (e instanceof IOException) {
-                canceled = true;
                 pausedPosition = currLength - read;
                 logger.warn("[{}] caught exception, canceled = {}, pausedPosition = {}", source, canceled, pausedPosition);
             }
         } finally {
             try {
-                in.close();
-                out.close();
-                if (in instanceof SocketInputStream || out instanceof SocketOutputStream) {
-                    if (ftpClient != null) {
-                        ftpClient.completePendingCommand();
-                        ftpClient.disconnect();
-                    }
+                IOUtils.closeQuietly(in);
+                IOUtils.closeQuietly(out);
+                if (ftpClient != null) {
+                    ftpClient.completePendingCommand();
+                    ftpClient.disconnect();
                 }
-                File file = new File(target);
-                if (canceled && file != null) {
-                    file.delete();
-                    logger.info("delete the file [{}]", target);
+                if (canceled) {
+                    File file = new File(target);
+                    if (file != null) {
+                        file.delete();
+                        logger.info("delete the file [{}]", target);
+                    }
                 }
                 buffer = null;
             } catch (IOException e) {
