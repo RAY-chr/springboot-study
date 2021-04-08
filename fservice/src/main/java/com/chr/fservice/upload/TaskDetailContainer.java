@@ -15,10 +15,10 @@ import java.util.stream.Collectors;
  * @since 2020/10/26
  */
 public class TaskDetailContainer {
-    private static final List<UploadTask> list = new ArrayList<>();
+    private static final List<UploadTask> TASKS = new ArrayList<>();
 
     public static synchronized void add(UploadTask uploadTask) {
-        list.add(uploadTask);
+        TASKS.add(uploadTask);
     }
 
     /**
@@ -26,12 +26,13 @@ public class TaskDetailContainer {
      *
      * @return
      */
-    public static synchronized List<UploadTask> get() {
-        List<UploadTask> tasks;
-        tasks = list.stream().filter(x -> x.getPercent().equals("100.00%") || x.isCanceled())
+    public static List<UploadTask> get() {
+        List<UploadTask> tasks = TASKS.stream().filter(x -> equals100(x) || x.isCanceled())
                 .collect(Collectors.toList());
-        list.removeAll(tasks);
-        return list;
+        synchronized (TaskDetailContainer.class) {
+            TASKS.removeAll(tasks);
+        }
+        return TASKS;
     }
 
     /**
@@ -40,8 +41,7 @@ public class TaskDetailContainer {
      * @param source
      */
     public static void cancel(String source) {
-        List<UploadTask> tasks = getList(x -> x.getSource().equalsIgnoreCase(source)
-                && !x.getPercent().equals("100.00%"));
+        List<UploadTask> tasks = predicateList(x -> selectOne(x, source));
         if (tasks.size() >= 1) {
             UploadTask task = tasks.get(0);
             // 任务暂停了再取消，直接删除本地文件即可
@@ -65,8 +65,7 @@ public class TaskDetailContainer {
      * @param source
      */
     public static void pause(String source) {
-        List<UploadTask> tasks = getList(x -> x.getSource().equalsIgnoreCase(source)
-                && !x.getPercent().equals("100.00%"));
+        List<UploadTask> tasks = predicateList(x -> selectOne(x, source));
         if (tasks.size() >= 1) {
             tasks.get(0).setPaused(true);
         }
@@ -78,8 +77,7 @@ public class TaskDetailContainer {
      * @param source
      */
     public static void resume(String source) {
-        List<UploadTask> tasks = getList(x -> x.getSource().equalsIgnoreCase(source)
-                && !x.getPercent().equals("100.00%") && x.isPaused());
+        List<UploadTask> tasks = predicateList(x -> selectOne(x, source) && x.isPaused());
         if (tasks.size() >= 1) {
             UploadTask task = tasks.get(0);
             task.setPaused(false);
@@ -88,9 +86,29 @@ public class TaskDetailContainer {
         }
     }
 
-    public static List<UploadTask> getList(Predicate<? super UploadTask> predicate) {
-        List<UploadTask> tasks = list.stream().filter(predicate)
-                .collect(Collectors.toList());
-        return tasks;
+    /**
+     * 从任务管理器中选择正在运行的任务
+     *
+     * @param x
+     * @param source
+     * @return
+     */
+    private static boolean selectOne(UploadTask x, String source) {
+        return x.getSource().equalsIgnoreCase(source) && !equals100(x);
     }
+
+    /**
+     * 任务的进度是否为100%
+     *
+     * @param x
+     * @return
+     */
+    private static boolean equals100(UploadTask x) {
+        return x.getPercent().equals("100.00%");
+    }
+
+    public static List<UploadTask> predicateList(Predicate<? super UploadTask> predicate) {
+        return TASKS.stream().filter(predicate).collect(Collectors.toList());
+    }
+
 }
