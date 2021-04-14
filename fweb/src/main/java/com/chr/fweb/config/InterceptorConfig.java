@@ -17,7 +17,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author RAY
@@ -39,6 +42,7 @@ public class InterceptorConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new TestInterceptor()).order(1).addPathPatterns("/**");
         registry.addInterceptor(new IpLimitInterceptor()).order(2).addPathPatterns("/**");
+        registry.addInterceptor(new ThreadLimitInterceptor()).order(3).addPathPatterns("/**");
     }
 
     @Override
@@ -147,7 +151,7 @@ public class InterceptorConfig implements WebMvcConfigurer {
                     } else {
                         String s = redisTemplate.opsForValue().get(key);
                         int i = Integer.parseInt(s);
-                        if (i > times) {
+                        if (i >= times) {
                             writeAuthFail(response, "访问次数过多");
                             return false;
                         } else {
@@ -166,6 +170,53 @@ public class InterceptorConfig implements WebMvcConfigurer {
                 }
             }
             return true;
+        }
+    }
+
+    private class ThreadLimitInterceptor implements HandlerInterceptor {
+        private final Map<Method, AtomicInteger> threadLimit = new HashMap<>();
+
+        @Override
+        public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
+                                 Object handler) throws Exception {
+            if (notInsHandlerMethod(handler)) return true;
+            return threadLimit(request, response, ((HandlerMethod) handler).getMethod());
+        }
+
+        public boolean threadLimit(HttpServletRequest request, HttpServletResponse response, Method method) {
+            ThreadLimit annotation = method.getAnnotation(ThreadLimit.class);
+            if (annotation == null) return true;
+            if (!threadLimit.containsKey(method)) {
+                synchronized (this) {
+                    if (!threadLimit.containsKey(method)) {
+                        threadLimit.put(method, new AtomicInteger(0));
+                    }
+                }
+            }
+            AtomicInteger size = threadLimit.get(method);
+            int get = size.get();
+            if (get >= annotation.size()) {
+                try {
+                    writeAuthFail(response, "thread too much");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return false;
+            }
+            size.incrementAndGet();
+            return true;
+        }
+
+        @Override
+        public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
+                                    Object handler, Exception ex) throws Exception {
+            if (notInsHandlerMethod(handler)) return;
+            Method method = ((HandlerMethod) handler).getMethod();
+            ThreadLimit annotation = method.getAnnotation(ThreadLimit.class);
+            if (annotation == null) return;
+            AtomicInteger size = threadLimit.get(method);
+            size.decrementAndGet();
+            return;
         }
     }
 }
