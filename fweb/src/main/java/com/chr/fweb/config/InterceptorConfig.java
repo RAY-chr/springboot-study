@@ -129,6 +129,8 @@ public class InterceptorConfig implements WebMvcConfigurer {
 
 
     private class IpLimitInterceptor implements HandlerInterceptor {
+        private final Map<String, Object> lock = new HashMap<>();
+
         @Override
         public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
                                  Object handler) throws Exception {
@@ -147,17 +149,28 @@ public class InterceptorConfig implements WebMvcConfigurer {
                 try {
                     Boolean hasKey = redisTemplate.hasKey(key);
                     if (!hasKey) {
-                        redisTemplate.opsForValue().set(key, "1", expire, TimeUnit.SECONDS);
-                    } else {
-                        String s = redisTemplate.opsForValue().get(key);
-                        int i = Integer.parseInt(s);
-                        if (i >= times) {
-                            writeAuthFail(response, "访问次数过多");
-                            return false;
-                        } else {
-                            redisTemplate.opsForValue().increment(key, 1L);
-                            return true;
+                        synchronized (this) {
+                            if (!redisTemplate.hasKey(key)) {
+                                lock.putIfAbsent(key, new Object());
+                                redisTemplate.opsForValue().set(key, "0", expire, TimeUnit.SECONDS);
+                            }
                         }
+                    }
+                    String s = redisTemplate.opsForValue().get(key);
+                    int i = Integer.parseInt(s);
+                    if (i >= times) {
+                        writeAuthFail(response, "访问次数过多");
+                        return false;
+                    } else {
+                        // 可以利用lua脚本
+                        synchronized (lock.get(key)) {
+                            if (Integer.parseInt(redisTemplate.opsForValue().get(key)) >= times) {
+                                writeAuthFail(response, "访问次数过多");
+                                return false;
+                            }
+                            redisTemplate.opsForValue().increment(key, 1L);
+                        }
+                        return true;
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
