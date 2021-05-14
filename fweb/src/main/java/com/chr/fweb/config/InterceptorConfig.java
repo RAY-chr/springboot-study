@@ -216,8 +216,22 @@ public class InterceptorConfig implements WebMvcConfigurer {
                 }
                 return false;
             }
-            size.incrementAndGet();
-            return true;
+            while (true) {
+                if (size.compareAndSet(size.get(), size.get() + 1)) {
+                    return true;
+                } else {
+                    if (size.get() >= annotation.size()) {
+                        try {
+                            writeAuthFail(response, "thread too much");
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        return false;
+                    }
+                }
+            }
+            //size.incrementAndGet();
+            //return true;
         }
 
         @Override
