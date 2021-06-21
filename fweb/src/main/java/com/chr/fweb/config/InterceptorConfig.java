@@ -147,12 +147,13 @@ public class InterceptorConfig implements WebMvcConfigurer {
                 String key = ipPrefix + ":" + (remoteIP = StringUtils.isEmpty(remoteIP) ?
                         "null" : remoteIP);
                 try {
-                    Boolean hasKey = redisTemplate.hasKey(key);
-                    if (!hasKey) {
+                    if (!lock.containsKey(key) || !redisTemplate.hasKey(key)) {
                         synchronized (this) {
-                            if (!redisTemplate.hasKey(key)) {
+                            if (!lock.containsKey(key) || !redisTemplate.hasKey(key)) {
+                                if (!redisTemplate.hasKey(key)) {
+                                    redisTemplate.opsForValue().set(key, "0", expire, TimeUnit.SECONDS);
+                                }
                                 lock.putIfAbsent(key, new Object());
-                                redisTemplate.opsForValue().set(key, "0", expire, TimeUnit.SECONDS);
                             }
                         }
                     }

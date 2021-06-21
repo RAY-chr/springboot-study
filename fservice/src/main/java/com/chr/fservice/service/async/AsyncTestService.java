@@ -25,7 +25,8 @@ public class AsyncTestService {
     @Resource(name = "batchPool")
     private ThreadPoolExecutor batchPool;
 
-    @PostConstruct  //@PostConstruct注解的方法在构造器执行后(依赖注入后),init方法（servlet中）之前执行
+    @PostConstruct  //@PostConstruct注解的方法在构造器执行后(依赖注入后),
+    // applicationContext初始化完毕(手动获取bean)之前, init方法（servlet中）之前执行
     public void init() {
         System.out.println("===============================");
         System.out.println("初始化AsyncTestService。。。");

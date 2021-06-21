@@ -25,6 +25,7 @@ import java.util.UUID;
 public class UploadTask implements Runnable {
 
     private static Logger logger = LoggerFactory.getLogger(UploadTask.class);
+    private String id;
     private String batchNo = "1";
     private String source = "";
     private InputStream inputStream;
@@ -92,6 +93,13 @@ public class UploadTask implements Runnable {
             while (count <= lastTime + 1 && (read = in.read(buffer)) != -1) {
                 if (canceled) {
                     logger.warn("[{}] canceled = {}", source, canceled);
+                    Task id = taskService.getById(this.id);
+                    if (id != null) {
+                        id.setTotalSize(String.valueOf(totalLength));
+                        id.setCanceled("1");
+                        id.setPaused("0");
+                        taskService.updateById(id);
+                    }
                     break;
                 }
                 // 保证读取的字节为字节数组长度
@@ -109,6 +117,13 @@ public class UploadTask implements Runnable {
                 if (paused && currLength < totalLength) {
                     pausedPosition = currLength;
                     logger.warn("[{}] paused = {}, pausedPosition = {}", source, paused, pausedPosition);
+                    Task id = taskService.getById(this.id);
+                    if (id != null) {
+                        id.setTotalSize(String.valueOf(totalLength));
+                        id.setCanceled("0");
+                        id.setPaused("1");
+                        taskService.updateById(id);
+                    }
                     break;
                 }
                 percent = this.count(currLength, totalLength);
@@ -148,17 +163,24 @@ public class UploadTask implements Runnable {
 
     public void saveTask(LocalDateTime start) {
         LocalDateTime end = LocalDateTime.now();
-        Task task = new Task();
-        task.setId(UUID.randomUUID().toString());
-        task.setBatchNo(batchNo);
-        task.setSource(source);
-        task.setTarget(target);
-        task.setStartTime(start);
-        task.setEndTime(end);
-        task.setTotalSize(totalLength + "");
-        task.setCanceled("0");
-        taskService.save(task);
+        Task task = taskService.getById(this.id);
+        if (task != null) {
+            task.setStartTime(start);
+            task.setEndTime(end);
+            task.setTotalSize(totalLength + "");
+            task.setCanceled("0");
+            task.setPaused("0");
+            taskService.updateById(task);
+        }
         logger.info("[{}] upload success, totalSize [{}]", source, totalLength);
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getBatchNo() {

@@ -3,10 +3,12 @@ package com.chr.fservice.service.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.chr.fservice.config.DataSourceContext;
 import com.chr.fservice.entity.Book;
+import com.chr.fservice.entity.Task;
 import com.chr.fservice.mapper.BookMapper;
 import com.chr.fservice.pool.CommonStoragePool;
 import com.chr.fservice.pool.ThreadBatchPool;
 import com.chr.fservice.service.IBookService;
+import com.chr.fservice.service.ITaskService;
 import com.chr.fservice.upload.TaskDetailContainer;
 import com.chr.fservice.upload.UploadTask;
 import com.chr.fservice.upload.ftp.FTPUtil;
@@ -14,11 +16,13 @@ import org.apache.commons.net.ftp.FTPClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
@@ -44,9 +48,26 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements IB
     @Autowired
     private CommonStoragePool<UploadTask> queue;
 
+    @Autowired
+    private ITaskService taskService;
+
     @Bean("uploadPool")
     public CommonStoragePool<UploadTask> uploadPool() {
         return queue;
+    }
+
+    @Override
+    public boolean save(Book entity) {
+        /*if (entity.getBookState().equals("1")) {
+            try {
+                bookMapper.saveByState("book_1",entity);
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }*/
+        return super.save(entity);
     }
 
     @Override
@@ -86,7 +107,8 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements IB
         FTPClient ftpClient = ftpUtil.getFtpClient();
         List<String> files = ftpUtil.getAbsolutePathFiles(source, ftpClient);
         for (String file : files) {
-            this.addTask(file, targetprefix, batchNo);
+            long size = ftpUtil.getSize(file, ftpClient);
+            this.addTask(file, targetprefix, batchNo, size);
         }
         ftpClient.disconnect();
         return "success";
@@ -117,10 +139,11 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements IB
         return this.addTask0(task);
     }
 
-    public String addTask(String source, String targetprefix, String batchNo) {
+    public String addTask(String source, String targetprefix, String batchNo, long size) {
         String target = targetprefix + System.currentTimeMillis() + getRandNum(6)
                 + source.substring(source.lastIndexOf("/") + 1);
         UploadTask task = new UploadTask(source, target, batchNo);
+        task.setTotalLength(size);
         return this.addTask0(task);
     }
 
@@ -132,6 +155,18 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements IB
      */
     public String addTask0(UploadTask task) {
         if (task.getPausedPosition() == 0) {
+            String id = UUID.randomUUID().toString();
+            task.setId(id);
+            String source = task.getSource();
+            if (!StringUtils.isEmpty(source)) {
+                Task dbTask = new Task();
+                dbTask.setId(id);
+                dbTask.setSource(source);
+                dbTask.setTarget(task.getTarget());
+                dbTask.setBatchNo(task.getBatchNo() == null ? "1" : task.getBatchNo());
+                dbTask.setTotalSize(task.getTotalLength() + "");
+                taskService.save(dbTask);
+            }
             TaskDetailContainer.add(task);
         }
         if (!this.transfer(task).equals("success")) {

@@ -56,6 +56,11 @@ public class Task extends Model<Task> {
      */
     private String canceled;
 
+    /**
+     * 1为暂停(正常暂停)，0为正常(为空的时候是因为程序突然关闭)  存放库里面的状态除了是1或者null时，其余都是0
+     */
+    private String paused;
+
     public String getId() {
         return id;
     }
@@ -111,6 +116,14 @@ public class Task extends Model<Task> {
 
     public void setCanceled(String canceled) {
         this.canceled = canceled;
+    }
+
+    public String getPaused() {
+        return paused;
+    }
+
+    public void setPaused(String paused) {
+        this.paused = paused;
     }
 
     @Override

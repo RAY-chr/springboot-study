@@ -226,7 +226,7 @@ public class QrcodeController {
     @RequestMapping("/quartzRe")
     @ResponseBody
     public String quartzRe() throws Exception {
-        quartzJobHandle.resumeJob("com.chr.fservice.quartz.job.HelloJob", "1");
+        quartzJobHandle.resumeJob("com.chr.fservice.quartz.job.DataCompareJob", "1");
         return "job resume success";
     }
 

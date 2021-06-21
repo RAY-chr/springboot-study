@@ -1,7 +1,9 @@
 package com.chr.fservice.upload;
 
 import com.chr.fservice.SpringUtil;
+import com.chr.fservice.entity.Task;
 import com.chr.fservice.service.IBookService;
+import com.chr.fservice.service.ITaskService;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -40,13 +42,18 @@ public class TaskDetailContainer {
      *
      * @param source
      */
-    public static void cancel(String source) {
-        List<UploadTask> tasks = predicateList(x -> selectOne(x, source));
+    public static void cancel(String id) {
+        List<UploadTask> tasks = predicateList(x -> selectOne(x, id));
         if (tasks.size() >= 1) {
             UploadTask task = tasks.get(0);
             // 任务暂停了再取消，直接删除本地文件即可
             if (task.isPaused()) {
                 task.setCanceled(true);
+                ITaskService taskService = SpringUtil.getBean(ITaskService.class);
+                Task dbTask = taskService.getById(id);
+                dbTask.setCanceled("1");
+                dbTask.setPaused("0");
+                taskService.updateById(dbTask);
                 String target = task.getTarget();
                 File file = new File(target);
                 if (file != null) {
@@ -64,8 +71,8 @@ public class TaskDetailContainer {
      *
      * @param source
      */
-    public static void pause(String source) {
-        List<UploadTask> tasks = predicateList(x -> selectOne(x, source));
+    public static void pause(String id) {
+        List<UploadTask> tasks = predicateList(x -> selectOne(x, id));
         if (tasks.size() >= 1) {
             tasks.get(0).setPaused(true);
         }
@@ -76,8 +83,8 @@ public class TaskDetailContainer {
      *
      * @param source
      */
-    public static void resume(String source) {
-        List<UploadTask> tasks = predicateList(x -> selectOne(x, source) && x.isPaused());
+    public static void resume(String id) {
+        List<UploadTask> tasks = predicateList(x -> selectOne(x, id) && x.isPaused());
         if (tasks.size() >= 1) {
             UploadTask task = tasks.get(0);
             task.setPaused(false);
@@ -90,11 +97,11 @@ public class TaskDetailContainer {
      * 从任务管理器中选择正在运行的任务
      *
      * @param x
-     * @param source
+     * @param id
      * @return
      */
-    private static boolean selectOne(UploadTask x, String source) {
-        return x.getSource().equalsIgnoreCase(source) && !equals100(x);
+    private static boolean selectOne(UploadTask x, String id) {
+        return x.getId().equals(id) && !equals100(x);
     }
 
     /**

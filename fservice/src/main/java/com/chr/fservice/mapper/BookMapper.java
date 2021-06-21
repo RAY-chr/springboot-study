@@ -3,6 +3,7 @@ package com.chr.fservice.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.chr.fservice.entity.Book;
 import com.chr.fservice.entity.SimpleBook;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -19,4 +20,14 @@ public interface BookMapper extends BaseMapper<Book> {
     List<Book> test();
 
     List<SimpleBook> testView();
+
+    /**
+     * 对于表名，字段，orderBy等需要使用 ${}
+     * @param table
+     * @param book
+     * @return
+     */
+    Book getById(@Param("table") String table, Book book);
+
+    void saveByState(@Param("table") String table, Book book);
 }

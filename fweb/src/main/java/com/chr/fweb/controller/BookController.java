@@ -1,6 +1,7 @@
 package com.chr.fweb.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.chr.fservice.config.DataSourceContext;
 import com.chr.fservice.entity.Book;
 import com.chr.fservice.entity.Picture;
 import com.chr.fservice.entity.SimpleBook;
@@ -14,6 +15,9 @@ import com.chr.fservice.service.async.AsyncTestService;
 import com.chr.fservice.upload.TaskDetailContainer;
 import com.chr.fservice.upload.UploadTask;
 import com.chr.fservice.upload.ftp.FTPUtil;
+import com.chr.fweb.config.IpLimit;
+import com.chr.fweb.config.ThreadLimit;
+import netty.dao.entity.Renter;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -67,9 +72,13 @@ public class BookController {
     @Autowired
     private FTPUtil ftpUtil;
 
+    @Autowired
+    private RenterDao renterDao;
+
     @RequestMapping("/book")
     @ResponseBody
     @Transactional
+    @ThreadLimit(size = 1)
     public List<Book> list() {
         List<Book> books = iBookService.list();
         Book book = iBookService.getOne(new QueryWrapper<Book>()
@@ -89,8 +98,32 @@ public class BookController {
     }
 
     @RequestMapping("/Toupload")
+    @IpLimit(/*times = 1, expire = 7200L*/)
     public String Toupload() {
+        try {
+            Book book = new Book();
+            book.setBookId(1);
+            DataSourceContext.setDataSource("slave");
+            Book book_1 = bookMapper.getById("book_1", book);
+            DataSourceContext.clearCache();
+            Renter renter = renterDao.selectById(1);
+            System.out.println(renter);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return "upload";
+    }
+
+    @RequestMapping("/saveByState")
+    @ResponseBody
+    public String saveByState(Integer id, String state) {
+        Book book = new Book();
+        book.setBookId(id);
+        book.setBookNo("1001");
+        book.setBookName("11");
+        book.setBookState(state);
+        iBookService.save(book);
+        return "success";
     }
 
 
@@ -111,6 +144,7 @@ public class BookController {
 
     @RequestMapping("/test")
     @ResponseBody
+    @ThreadLimit
     public String test() {
         String s = iBookService.transfer(() -> {
             int i = 0;
@@ -162,12 +196,15 @@ public class BookController {
     @RequestMapping("/download")
     public void download(HttpServletRequest request, HttpServletResponse response) throws Exception {
         byte[] buffer = new byte[2048];
-        String path = "C:\\Users\\RAY\\Desktop\\常用\\派拉\\周报\\9.07-9.11周报_陈红任.docx";
+        /*String path = "C:\\Users\\RAY\\Desktop\\常用\\派拉\\周报\\9.07-9.11周报_陈红任.docx";
         // 转换为utf-8编码
         path = URLDecoder.decode(path, "UTF-8");
         File file = new File(path);
-        FileInputStream in = new FileInputStream(file);
-        response.setHeader("Content-Disposition", "attachment;fileName=" + file.getName());
+        InputStream in = new FileInputStream(file);*/
+        String name = "1.exe";
+        FTPClient ftpClient = ftpUtil.getFtpClient();
+        InputStream in = ftpClient.retrieveFileStream("/1.exe");
+        response.setHeader("Content-Disposition", "attachment;fileName=" + name);
         response.setCharacterEncoding("utf-8");
         response.setContentType("multipart/form-data");
         OutputStream out = response.getOutputStream();
@@ -175,6 +212,7 @@ public class BookController {
         while ((read = in.read(buffer)) != -1) {
             out.write(buffer, 0, read);
         }
+        ftpClient.disconnect();
     }
 
     @RequestMapping("uploadTask")
@@ -228,13 +266,17 @@ public class BookController {
         return s;
     }
 
-    @RequestMapping("ftpList")
+    @RequestMapping("/ftpList/**")
     @ResponseBody
-    public List<String> ftpList() throws IOException {
+    public FTPFile[] ftpList(HttpServletRequest request) throws IOException {
+        String uri = request.getRequestURI();
+        String s = uri.substring("ftpList".length()+1);
         FTPClient ftpClient = ftpUtil.getFtpClient();
-        List<String> files = ftpUtil.getAbsolutePathFiles("/", null);
+        FTPFile[] ftpFiles = ftpClient.listFiles(s);
+        List<String> files = ftpUtil.getAbsolutePathFiles(s, ftpClient);
+        ftpClient.disconnect();
         //System.out.println(ftpUtil.mkdirs("/test/2021/21", ftpClient));
-        return files;
+        return ftpFiles;
     }
 
 }

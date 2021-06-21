@@ -8,10 +8,17 @@ package com.chr.fservice.entity;
 public class Picture {
     private Integer id;
     private String path;
+    private Integer version;
 
     public Picture(Integer id, String path) {
         this.id = id;
         this.path = path;
+    }
+
+    public Picture(Integer id, String path, Integer version) {
+        this.id = id;
+        this.path = path;
+        this.version = version;
     }
 
     public Integer getId() {
@@ -28,6 +35,14 @@ public class Picture {
 
     public void setPath(String path) {
         this.path = path;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
     }
 
     @Override

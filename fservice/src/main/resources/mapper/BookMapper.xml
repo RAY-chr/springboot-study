@@ -4,10 +4,10 @@
 
     <!-- 通用查询映射结果 -->
     <resultMap id="BaseResultMap" type="com.chr.fservice.entity.Book">
-        <id column="book_id" property="bookId" />
-        <result column="book_no" property="bookNo" />
-        <result column="book_name" property="bookName" />
-        <result column="book_state" property="bookState" />
+        <id column="book_id" property="bookId"/>
+        <result column="book_no" property="bookNo"/>
+        <result column="book_name" property="bookName"/>
+        <result column="book_state" property="bookState"/>
     </resultMap>
     <select id="test" resultType="com.chr.fservice.entity.Book">
         SELECT *
@@ -18,5 +18,16 @@
         SELECT *
         FROM test
     </select>
+
+    <select id="getById" resultType="com.chr.fservice.entity.Book" parameterType="Book">
+        SELECT *
+        FROM ${table}
+        where book_id = #{book.bookId}
+    </select>
+
+    <insert id="saveByState" parameterType="Book">
+        INSERT INTO ${table} ( `book_id`, `book_no`, `book_name`, `book_state` )
+        VALUES (#{book.bookId}, #{book.bookNo}, #{book.bookName}, #{book.bookState})
+    </insert>
 
 </mapper>

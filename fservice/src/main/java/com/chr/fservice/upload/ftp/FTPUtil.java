@@ -101,7 +101,7 @@ public class FTPUtil {
      * @throws IOException
      */
     private void getAbsolutePathFiles0(String remote, List<String> list, FTPClient ftpClient) throws IOException {
-        ftpClient.enterLocalPassiveMode();
+        //ftpClient.enterLocalPassiveMode();
         FTPFile[] files = ftpClient.listFiles(remote);
         for (FTPFile file : files) {
             if (file.isFile()) {
