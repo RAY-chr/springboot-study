@@ -24,7 +24,9 @@ public class TaskDetailContainer {
     }
 
     /**
-     * 拿到当前传输任务的信息
+     * 拿到当前传输任务的信息  集群的时候可以定时的写入 TASKS 至 redis中（使用 list 结构追加）
+     * 查询 TASKS 为空集合的时候，再查询 redis
+     * 暂停恢复取消则必须判断任务运行在那个节点上了，可以添加 TASK 至数据库时，添加 ip 地址字段实现
      *
      * @return
      */

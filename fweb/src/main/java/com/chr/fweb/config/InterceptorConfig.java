@@ -94,7 +94,7 @@ public class InterceptorConfig implements WebMvcConfigurer {
             ip = request.getRemoteAddr();
         }
         if (ip != null) {
-            //对于通过多个代理的情况，最后IP为客户端真实IP,多个IP按照','分割
+            //对于通过多个代理的情况，第一个IP为客户端真实IP,多个IP按照','分割
             int position = ip.indexOf(",");
             if (position > 0) {
                 ip = ip.substring(0, position);
@@ -163,7 +163,7 @@ public class InterceptorConfig implements WebMvcConfigurer {
                         writeAuthFail(response, "访问次数过多");
                         return false;
                     } else {
-                        // 可以利用lua脚本
+                        // 可以利用lua脚本 使用 synchronized 单机版没问题 集群的话需要用分布式锁
                         synchronized (lock.get(key)) {
                             if (Integer.parseInt(redisTemplate.opsForValue().get(key)) >= times) {
                                 writeAuthFail(response, "访问次数过多");

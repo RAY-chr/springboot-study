@@ -52,12 +52,24 @@ public class FTPUtil {
         return getSize(remote, null);
     }
 
+    /**
+     * 返回 -1 代表是目录
+     *
+     * @param remote
+     * @param ftpClient
+     * @return
+     * @throws IOException
+     */
     public long getSize(String remote, FTPClient ftpClient) throws IOException {
         if (ftpClient == null) {
             ftpClient = getFtpClient();
         }
         FTPFile[] files = ftpClient.listFiles(remote);
-        long fileSize = 0;
+        if (files.length == 0) {
+            ftpClient.disconnect();
+            throw new IOException("the remote is not the correct path");
+        }
+        long fileSize = -1;
         if (files.length == 1 && files[0].isFile()) {
             fileSize = files[0].getSize();
         }
@@ -87,7 +99,14 @@ public class FTPUtil {
         if (ftpClient == null) {
             ftpClient = getFtpClient();
         }
-        this.getAbsolutePathFiles0(remote, list, ftpClient);
+        if (getSize(remote, ftpClient) == -1) {
+            if (remote.lastIndexOf("/") != (remote.length() - 1)) {
+                remote = remote + "/";
+            }
+            this.getAbsolutePathFiles0(remote, list, ftpClient);
+        } else {
+            list.add(remote);
+        }
         return list;
     }
 
@@ -95,6 +114,7 @@ public class FTPUtil {
      * 调用FTPClient.enterLocalPassiveMode();这个方法的意思就是每次数据连接之前，
      * ftp client告诉ftp server开通一个端口来传输数据。为什么要这样做呢，
      * 因为ftp server可能每次开启不同的端口来传输数据，但是在linux上，由于安全限制，可能某些端口没有开启，所以就出现阻塞
+     *
      * @param remote
      * @param list
      * @param ftpClient

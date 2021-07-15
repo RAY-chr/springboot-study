@@ -20,21 +20,24 @@ import com.chr.fweb.config.ThreadLimit;
 import netty.dao.entity.Renter;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
+import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Mono;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 import java.io.*;
-import java.net.URLDecoder;
 import java.util.List;
 import java.util.concurrent.Future;
 
@@ -44,6 +47,7 @@ import java.util.concurrent.Future;
  * @since 2020/5/3
  */
 @Controller
+@Validated
 public class BookController {
 
     @Value("${linuxPath}")
@@ -194,17 +198,18 @@ public class BookController {
     }
 
     @RequestMapping("/download")
-    public void download(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    public void download(String remote, HttpServletResponse response) throws Exception {
         byte[] buffer = new byte[2048];
         /*String path = "C:\\Users\\RAY\\Desktop\\常用\\派拉\\周报\\9.07-9.11周报_陈红任.docx";
         // 转换为utf-8编码
         path = URLDecoder.decode(path, "UTF-8");
         File file = new File(path);
         InputStream in = new FileInputStream(file);*/
-        String name = "1.exe";
+        String name = remote.substring(remote.lastIndexOf("/") + 1);
         FTPClient ftpClient = ftpUtil.getFtpClient();
-        InputStream in = ftpClient.retrieveFileStream("/1.exe");
+        InputStream in = ftpClient.retrieveFileStream(remote);
         response.setHeader("Content-Disposition", "attachment;fileName=" + name);
+        response.setHeader("fileName", name);
         response.setCharacterEncoding("utf-8");
         response.setContentType("multipart/form-data");
         OutputStream out = response.getOutputStream();
@@ -212,12 +217,14 @@ public class BookController {
         while ((read = in.read(buffer)) != -1) {
             out.write(buffer, 0, read);
         }
+        in.close();
+        out.close();
         ftpClient.disconnect();
     }
 
     @RequestMapping("uploadTask")
     @ResponseBody
-    public String uploadTask(@RequestParam("source") String source) throws IOException {
+    public String uploadTask(@Valid @Length(max = 12) @RequestParam("source") String source) throws IOException {
         String s = iBookService.uploadTask(source, path);
         return s;
     }
@@ -270,7 +277,7 @@ public class BookController {
     @ResponseBody
     public FTPFile[] ftpList(HttpServletRequest request) throws IOException {
         String uri = request.getRequestURI();
-        String s = uri.substring("ftpList".length()+1);
+        String s = uri.substring("ftpList".length() + 1);
         FTPClient ftpClient = ftpUtil.getFtpClient();
         FTPFile[] ftpFiles = ftpClient.listFiles(s);
         List<String> files = ftpUtil.getAbsolutePathFiles(s, ftpClient);
