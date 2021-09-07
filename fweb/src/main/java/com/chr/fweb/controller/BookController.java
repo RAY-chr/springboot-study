@@ -1,5 +1,15 @@
 package com.chr.fweb.controller;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelReader;
+import com.alibaba.excel.ExcelWriter;
+import com.alibaba.excel.context.AnalysisContext;
+import com.alibaba.excel.event.AnalysisEventListener;
+import com.alibaba.excel.read.builder.ExcelReaderBuilder;
+import com.alibaba.excel.support.ExcelTypeEnum;
+import com.alibaba.excel.write.ExcelBuilder;
+import com.alibaba.excel.write.builder.ExcelWriterBuilder;
+import com.alibaba.excel.write.metadata.WriteSheet;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.chr.fservice.config.DataSourceContext;
 import com.chr.fservice.entity.Book;
@@ -23,22 +33,26 @@ import org.apache.commons.net.ftp.FTPFile;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
-import reactor.core.publisher.Mono;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 /**
@@ -220,6 +234,77 @@ public class BookController {
         in.close();
         out.close();
         ftpClient.disconnect();
+    }
+
+    @RequestMapping("/receive")
+    @ResponseBody
+    public String receive(HttpServletRequest request) throws Exception {
+        String fileName = request.getHeader("fileName");
+        fileName = URLDecoder.decode(fileName, "utf-8");
+        InputStream in = request.getInputStream();
+        FileOutputStream outputStream = new FileOutputStream(new File(
+                "C:\\Users\\RAY\\Desktop\\" + fileName));
+        byte[] buffer = new byte[2048];
+        int read;
+        while ((read = in.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, read);
+        }
+        in.close();
+        outputStream.close();
+        return "success";
+    }
+
+    @GetMapping("/exportExcel")
+    @ResponseBody
+    public String exportExcel() throws IOException {
+        String fileName = URLEncoder.encode("书籍表.xlsx", StandardCharsets.UTF_8.toString());
+        File file = new File("C:\\Users\\RAY\\Desktop\\book.xlsx");
+        FileOutputStream outputStream = new FileOutputStream(file);
+        ExcelWriter writer = new ExcelWriterBuilder()
+                .excelType(ExcelTypeEnum.XLSX)
+                .file(outputStream)
+                .head(Book.class)
+                .build();
+        // xlsx文件上上限是104W行左右,这里如果超过104W需要分Sheet
+        WriteSheet writeSheet = new WriteSheet();
+        writeSheet.setSheetName("书籍");
+        CompletableFuture.runAsync(() -> {
+            try {
+                writer.write(bookMapper.selectList(null), writeSheet);
+                writer.finish();
+                outputStream.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).whenComplete((x, thro) -> System.out.println(Thread.currentThread().getName() + "============"));
+        System.out.println("request -> " + Thread.currentThread().getName());
+        return "success";
+    }
+
+    @GetMapping("/readExcel")
+    @ResponseBody
+    public List<Book> readExcel() throws IOException {
+        File file = new File("C:\\Users\\RAY\\Desktop\\book.xlsx");
+        List<Book> reads = new ArrayList<>();
+        FileInputStream inputStream = new FileInputStream(file);
+        EasyExcel.read(inputStream)
+                .head(Book.class)
+                .excelType(ExcelTypeEnum.XLSX)
+                .sheet()
+                .registerReadListener(new AnalysisEventListener<Book>() {
+
+                    @Override
+                    public void invoke(Book book, AnalysisContext analysisContext) {
+                        reads.add(book);
+                    }
+
+                    @Override
+                    public void doAfterAllAnalysed(AnalysisContext analysisContext) {
+
+                    }
+                }).doRead();
+        inputStream.close();
+        return reads;
     }
 
     @RequestMapping("uploadTask")

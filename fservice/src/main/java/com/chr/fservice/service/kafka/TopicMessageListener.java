@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.TopicPartition;
 import org.springframework.messaging.handler.annotation.Payload;
 
 /**
@@ -20,6 +21,7 @@ public class TopicMessageListener {
     private ObjectMapper objectMapper;
 
     @KafkaListener(topics = "topic_registration", groupId = "group1")
+    //@KafkaListener(topicPartitions = {@TopicPartition(topic = "topic_registration",partitions = {"1"})})
     public void onRegistrationMessage(@Payload String message/*, @Header("type") String type*/) throws Exception {
         logger.info("received message: {}", message);
     }

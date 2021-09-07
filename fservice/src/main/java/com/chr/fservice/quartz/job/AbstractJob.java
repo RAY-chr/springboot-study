@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
  * @descriptions
  * @since 2021/3/19
  */
+@DisallowConcurrentExecution
 public abstract class AbstractJob implements Job {
 
     private static Logger logger = LoggerFactory.getLogger(AbstractJob.class);

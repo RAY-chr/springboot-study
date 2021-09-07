@@ -2,6 +2,7 @@ package com.chr.fservice.config;
 
 import com.chr.fservice.service.MasterDataSourceProperties;
 import com.chr.fservice.service.SlaveDataSourceProperties;
+import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -29,12 +30,18 @@ public class DataSourceConfig {
 
     @Bean(name = "master")
     public DataSource masterSource() {
-        HikariDataSource dataSource = new HikariDataSource();
-        dataSource.setJdbcUrl(masterProperties.getUrl());
-        dataSource.setUsername(masterProperties.getUsername());
-        dataSource.setPassword(masterProperties.getPassword());
-        dataSource.setDriverClassName(masterProperties.getDriver());
-        return dataSource;
+        HikariConfig config = new HikariConfig();
+//        dataSource.setJdbcUrl(masterProperties.getUrl());
+//        dataSource.setUsername(masterProperties.getUsername());
+//        dataSource.setPassword(masterProperties.getPassword());
+//        dataSource.setDriverClassName(masterProperties.getDriver());
+        config.setDataSource(new OptionalDataSource());
+        config.setMinimumIdle(5);
+        //config.setDataSourceClassName("com.chr.fservice.config.OptionalDataSource");
+        /**
+         * 使用有参构造器使用 fastPathPool 更快
+         */
+        return new HikariDataSource(config);
     }
 
     @Bean(name = "slave")
