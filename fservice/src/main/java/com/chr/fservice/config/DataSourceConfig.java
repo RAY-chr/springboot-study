@@ -11,8 +11,10 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 
 import javax.sql.DataSource;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author RAY
@@ -70,6 +72,29 @@ public class DataSourceConfig {
      * 根据数据源的名称动态切换数据源
      */
     public static class RouteDataSource extends AbstractRoutingDataSource {
+
+        private AtomicBoolean addingDataSource = new AtomicBoolean(false);
+
+        public boolean addDataSource(Object key, DataSource dataSource) throws Exception {
+            Field field = AbstractRoutingDataSource.class.getDeclaredField("resolvedDataSources");
+            field.setAccessible(true);
+            Map<Object, DataSource> dataSourceMap = (Map<Object, DataSource>) field.get(this);
+            if (!addingDataSource.compareAndSet(false, true)) {
+                throw new IllegalStateException("now adding the dataSource ");
+            }
+            dataSourceMap.put(key, dataSource);
+            field.set(this, dataSourceMap);
+            addingDataSource.set(false);
+            return true;
+        }
+
+        @Override
+        protected DataSource determineTargetDataSource() {
+            if (addingDataSource.get()) {
+                throw new IllegalStateException("can't operation when adding the dataSource ");
+            }
+            return super.determineTargetDataSource();
+        }
 
         @Override
         protected Object determineCurrentLookupKey() {

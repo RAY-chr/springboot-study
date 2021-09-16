@@ -8,7 +8,14 @@ import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.chr.fservice.config.DataSourceConfig;
+import com.chr.fservice.config.DataSourceContext;
+import com.chr.fservice.config.OptionalDataSource;
+import com.chr.fservice.service.IBookService;
 import com.chr.fweb.config.IpLimit;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,6 +35,12 @@ import java.util.List;
 public class TaskController {
 
     private static final String ORDER_KEY = "getOrder";
+
+    @Autowired
+    private DataSourceConfig.RouteDataSource routeDataSource;
+
+    @Autowired
+    private IBookService bookService;
 
     @PostConstruct
     public void initFlowQpsRule() {
@@ -69,6 +82,29 @@ public class TaskController {
     @RequestMapping("/getOrderRedis")
     @IpLimit(times = 1, expire = 1)
     public String getOrderRedis() {
+        return "success";
+    }
+
+    /**
+     * 运行的时候添加数据源
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping("/addDataSource")
+    public String addDataSource() throws Exception {
+        HikariConfig config = new HikariConfig();
+        config.setDataSource(new OptionalDataSource());
+        config.setMinimumIdle(1);
+        HikariDataSource hikariDataSource = new HikariDataSource(config);
+        routeDataSource.addDataSource("new", hikariDataSource);
+        return "success";
+    }
+
+    @RequestMapping("/choseDataSource")
+    public String choseDataSource() {
+        DataSourceContext.setDataSource("new");
+        bookService.list();
+        DataSourceContext.clearCache();
         return "success";
     }
 
