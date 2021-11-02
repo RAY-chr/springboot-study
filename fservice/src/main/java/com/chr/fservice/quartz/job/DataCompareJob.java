@@ -27,7 +27,7 @@ public class DataCompareJob extends AbstractJob {
     private static IBookService bookService = SpringUtil.getBean(IBookService.class);
 
     @Override
-    public void execute() {
+    public void doExecute(JobExecutionContext context) {
         compareData();
     }
 

@@ -1,12 +1,14 @@
 package com.chr.fservice.quartz;
 
-import com.chr.fservice.quartz.job.HelloJob;
+import com.chr.fservice.mapper.BookMapper;
 import org.quartz.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * @author RAY
@@ -19,6 +21,9 @@ public class QuartzJobHandle {
     @Autowired
     @Qualifier("scheduler")
     private Scheduler scheduler;
+
+    @Autowired
+    private BookMapper bookMapper;
 
     /**
      * 添加job
@@ -96,6 +101,10 @@ public class QuartzJobHandle {
         JobKey jobKey = JobKey.jobKey(jobClassName, jobGroupName);
         scheduler.resumeJob(jobKey);
         logger.info("恢复任务 {} 成功", jobKey);
+    }
+
+    public List<JobContent> listAllJobs() {
+        return bookMapper.listAllJobs();
     }
 
 

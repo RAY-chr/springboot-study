@@ -1,5 +1,7 @@
 package com.chr.fservice.quartz.job;
 
+import org.quartz.JobExecutionContext;
+
 /**
  * @author RAY
  * @descriptions
@@ -7,7 +9,7 @@ package com.chr.fservice.quartz.job;
  */
 public class TestJob extends AbstractJob {
     @Override
-    protected void execute() {
+    protected void doExecute(JobExecutionContext context) {
         System.out.println("Test --------->>>>>>>");
     }
 }

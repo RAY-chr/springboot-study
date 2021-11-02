@@ -22,9 +22,9 @@ public abstract class AbstractJob implements Job {
         if (trigger instanceof CronTrigger) {
             logger.info("job cron : {}", ((CronTrigger) trigger).getCronExpression());
         }
-        this.execute();
+        this.doExecute(context);
         logger.info("======================== Job  end  =========================\n");
     }
 
-    protected abstract void execute();
+    protected abstract void doExecute(JobExecutionContext context);
 }

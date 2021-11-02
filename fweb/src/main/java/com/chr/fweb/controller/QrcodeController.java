@@ -2,6 +2,7 @@ package com.chr.fweb.controller;
 
 import com.chr.fservice.entity.Book;
 import com.chr.fservice.pool.CommonStoragePool;
+import com.chr.fservice.quartz.JobContent;
 import com.chr.fservice.quartz.QuartzJobHandle;
 import com.chr.fservice.service.IBookService;
 import com.chr.fservice.service.kafka.MessagingService;
@@ -218,6 +219,12 @@ public class QrcodeController {
         BeanUtils.copyProperties(book, book1);
         System.out.println(book1);
         return "job pause success";
+    }
+
+    @RequestMapping("/listAllJobs")
+    @ResponseBody
+    public List<JobContent> listAllJobs() {
+        return quartzJobHandle.listAllJobs();
     }
 
     /**

@@ -21,7 +21,20 @@ public class GlobalExceptionHandler {
         e.printStackTrace();
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("code", 400);
-        jsonObject.put("msg", e.toString());
+        jsonObject.put("msg", getCause(e).getMessage());
         return jsonObject.toString();
     }
+
+    /**
+     * 拿到最根源的异常信息
+     * @param e 传入的异常
+     * @return 根源异常
+     */
+    private Throwable getCause(Throwable e) {
+        while (e.getCause() != null) {
+            e = e.getCause();
+        }
+        return e;
+    }
+
 }

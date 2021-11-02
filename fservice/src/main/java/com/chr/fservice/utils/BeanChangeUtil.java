@@ -57,7 +57,7 @@ public class BeanChangeUtil {
 
     public static <T> T getNewBean(T source, T target) {
         BeanUtils.copyProperties(source, target);
-        return (T) target;
+        return target;
     }
 
 }

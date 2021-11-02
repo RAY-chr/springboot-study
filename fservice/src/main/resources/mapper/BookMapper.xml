@@ -30,4 +30,20 @@
         VALUES (#{book.bookId}, #{book.bookNo}, #{book.bookName}, #{book.bookState})
     </insert>
 
+    <select id="listAllJobs" resultType="com.chr.fservice.quartz.JobContent">
+        SELECT
+            j.JOB_NAME jobName,
+            j.DESCRIPTION jobDescription,
+            t.TRIGGER_STATE status,
+            j.JOB_CLASS_NAME jobClassName,
+            c.CRON_EXPRESSION cronExpression
+        FROM
+            qrtz_triggers t,
+            qrtz_job_details j,
+            qrtz_cron_triggers c
+        WHERE
+            t.JOB_NAME = j.JOB_NAME
+            AND t.TRIGGER_NAME = c.TRIGGER_NAME
+    </select>
+
 </mapper>
