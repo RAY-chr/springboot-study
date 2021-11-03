@@ -52,11 +52,11 @@ public class NettyBooter implements ApplicationRunner {
                 }
             }
         }).start();
-        quartzJobHandle.addJob("com.chr.fservice.quartz.job.HelloJob",
+        quartzJobHandle.addJob("com.chr.fservice.quartz.job.HelloJob", null,
                 "1", "0/10 * * * * ?");
-        quartzJobHandle.addJob("com.chr.fservice.quartz.job.DataCompareJob",
+        quartzJobHandle.addJob("com.chr.fservice.quartz.job.DataCompareJob", null,
                 "1", "0/30 * * * * ?");
-        quartzJobHandle.addJob("com.chr.fservice.quartz.job.TestJob",
+        quartzJobHandle.addJob("com.chr.fservice.quartz.job.TestJob", null,
                 "1", "0/5 * * * * ?");
         this.loadDbTasksToMemory();
         httpServer.start();

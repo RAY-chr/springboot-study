@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -33,17 +34,19 @@ public class QuartzJobHandle {
      * @param cronExpression
      * @throws Exception
      */
-    public void addJob(String jobClassName, String jobGroupName, String cronExpression) throws Exception {
+    @SuppressWarnings("unchecked")
+    public void addJob(String jobClassName, String jobName, String jobGroupName, String cronExpression) throws Exception {
         // 启动调度器
         scheduler.start();
+        jobName = StringUtils.isEmpty(jobName) ? jobClassName : jobName;
         //构建job信息
         JobDetail jobDetail = JobBuilder.newJob(
-                ((Job) Class.forName(jobClassName).newInstance()).getClass())
-                .withIdentity(jobClassName, jobGroupName).build();
+                ((Class <? extends Job>) Class.forName(jobClassName)))
+                .withIdentity(jobName, jobGroupName).build();
         //表达式调度构建器(即任务执行的时间)
         CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(cronExpression);
         //按新的cronExpression表达式构建一个新的trigger
-        CronTrigger trigger = TriggerBuilder.newTrigger().withIdentity(jobClassName, jobGroupName)
+        CronTrigger trigger = TriggerBuilder.newTrigger().withIdentity(jobName, jobGroupName)
                 .withSchedule(scheduleBuilder).build();
         try {
             scheduler.scheduleJob(jobDetail, trigger);
@@ -56,14 +59,13 @@ public class QuartzJobHandle {
     /**
      * 更新job
      *
-     * @param jobClassName
+     * @param jobName
      * @param jobGroupName
      * @param cronExpression
-     * @throws Exception
      */
-    public void rescheduleJob(String jobClassName, String jobGroupName, String cronExpression) throws Exception {
+    public void rescheduleJob(String jobName, String jobGroupName, String cronExpression) {
         try {
-            TriggerKey triggerKey = TriggerKey.triggerKey(jobClassName, jobGroupName);
+            TriggerKey triggerKey = TriggerKey.triggerKey(jobName, jobGroupName);
             // 表达式调度构建器
             CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(cronExpression);
             CronTrigger trigger = (CronTrigger) scheduler.getTrigger(triggerKey);
@@ -73,19 +75,20 @@ public class QuartzJobHandle {
             scheduler.rescheduleJob(triggerKey, trigger);
             logger.info("更新任务 {} 成功", triggerKey);
         } catch (SchedulerException e) {
-            System.out.println("更新定时任务失败"+e);
+            System.out.println("更新定时任务失败" + e);
+            throw new RuntimeException(e);
         }
     }
 
     /**
      * 暂停job
      *
-     * @param jobClassName
+     * @param jobName
      * @param jobGroupName
      * @throws Exception
      */
-    public void pauseJob(String jobClassName, String jobGroupName) throws Exception {
-        JobKey jobKey = JobKey.jobKey(jobClassName, jobGroupName);
+    public void pauseJob(String jobName, String jobGroupName) throws Exception {
+        JobKey jobKey = JobKey.jobKey(jobName, jobGroupName);
         scheduler.pauseJob(jobKey);
         logger.info("暂停任务 {} 成功", jobKey);
     }
@@ -93,20 +96,42 @@ public class QuartzJobHandle {
     /**
      * 恢复job
      *
-     * @param jobClassName
+     * @param jobName
      * @param jobGroupName
      * @throws Exception
      */
-    public void resumeJob(String jobClassName, String jobGroupName) throws Exception {
-        JobKey jobKey = JobKey.jobKey(jobClassName, jobGroupName);
+    public void resumeJob(String jobName, String jobGroupName) throws Exception {
+        JobKey jobKey = JobKey.jobKey(jobName, jobGroupName);
         scheduler.resumeJob(jobKey);
         logger.info("恢复任务 {} 成功", jobKey);
+    }
+
+    /**
+     * 立即执行job
+     *
+     * @param jobName
+     * @param jobGroupName
+     * @throws SchedulerException
+     */
+    public void triggerJob(String jobName, String jobGroupName) throws SchedulerException {
+        JobKey jobKey = JobKey.jobKey(jobName, jobGroupName);
+        scheduler.triggerJob(jobKey);
+    }
+
+    /**
+     * 删除job
+     *
+     * @param jobName
+     * @param jobGroupName
+     * @throws SchedulerException
+     */
+    public void deleteJob(String jobName, String jobGroupName) throws SchedulerException {
+        JobKey jobKey = JobKey.jobKey(jobName, jobGroupName);
+        scheduler.deleteJob(jobKey);
     }
 
     public List<JobContent> listAllJobs() {
         return bookMapper.listAllJobs();
     }
-
-
 
 }

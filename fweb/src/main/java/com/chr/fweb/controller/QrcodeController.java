@@ -230,6 +230,16 @@ public class QrcodeController {
     /**
      * @return
      */
+    @RequestMapping("/triggerJob")
+    @ResponseBody
+    public String triggerJob() throws Exception {
+        quartzJobHandle.triggerJob("com.chr.fservice.quartz.job.DataCompareJob", "1");
+        return "job trigger success";
+    }
+
+    /**
+     * @return
+     */
     @RequestMapping("/quartzRe")
     @ResponseBody
     public String quartzRe() throws Exception {

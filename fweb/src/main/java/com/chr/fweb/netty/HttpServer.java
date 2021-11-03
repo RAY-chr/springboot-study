@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 
@@ -23,6 +24,9 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class HttpServer {
+
+    @Value("${server.port:8080}")
+    private Integer serverPort;
 
     @Autowired
     private ObjectFactory<HttpServerHandler> objectFactory;
@@ -50,10 +54,10 @@ public class HttpServer {
                         }
                     });
             logger.info("服务器 is ready");
-            ChannelFuture fu = bootstrap.bind(port).sync();
+            ChannelFuture fu = bootstrap.bind(serverPort == 8080 ? port : 8089).sync();
             fu.addListener(future -> {
                 if (future.isSuccess()) {
-                    logger.info("监听端口"+port+"成功");
+                    logger.info("监听端口" + port + "成功");
                 } else {
                     System.out.println("监听失败");
                 }
