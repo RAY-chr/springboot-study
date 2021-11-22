@@ -1,10 +1,7 @@
 package com.chr.fservice.upload.nio;
 
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
@@ -18,6 +15,8 @@ import java.util.Iterator;
  * @since 2020/3/22
  */
 public class FileServer {
+    private static final String remoteHost = "192.168.108.8";
+    private static final String localHost = "127.0.0.1";
     private static final int bufferSize = 8192;
     private static final int PORT = 6667;
     private ServerSocketChannel serverSocketChannel;
@@ -32,7 +31,7 @@ public class FileServer {
         try {
             serverSocketChannel = ServerSocketChannel.open();
             serverSocketChannel.configureBlocking(false);
-            serverSocketChannel.socket().bind(new InetSocketAddress("127.0.0.1", PORT));
+            serverSocketChannel.socket().bind(new InetSocketAddress(localHost, PORT));
             selector = Selector.open();
             serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
             System.err.println("[FileServer] 服务器启动成功!");
@@ -131,14 +130,22 @@ public class FileServer {
             }
             if (b == 0) {  //客户端下载文件
                 System.err.println("客户端下载的文件路径为 ==> " + targetPath);
+                File file;
                 try {
+                    file = new File(targetPath);
                     fileChannel = new FileInputStream(targetPath).getChannel();
                 } catch (FileNotFoundException e) {
                     writeError("File Not Found", buffer, socketChannel);
                     close(null, socketChannel, key);
                     return;
                 }
-                writeSuccess(buffer, socketChannel);
+                buffer.clear();
+                buffer.putInt(1);
+                buffer.put((byte) 1);
+                // 向客户端声明源文件多大
+                buffer.putLong(file.length());
+                buffer.flip();
+                socketChannel.write(buffer);
                 buffer.clear();
                 int totalRead = 0;
                 int read;
@@ -149,6 +156,7 @@ public class FileServer {
                     write += socketChannel.write(buffer);
                     /**
                      * socketChannel.write(buffer) 不一定能写完数据 所以需要判断是否有剩余
+                     * 非阻塞模式下，write()方法在尚未写出任何内容时可能就返回了。所以需要在循环中调用write()
                      */
                     while (buffer.hasRemaining()) {
                         write += socketChannel.write(buffer);
@@ -187,7 +195,7 @@ public class FileServer {
      */
     private void writeError(String msg, ByteBuffer buffer, SocketChannel socketChannel) throws IOException {
         buffer.clear();
-        byte[] info = msg.getBytes();
+        byte[] info = msg.getBytes(StandardCharsets.UTF_8);
         buffer.putInt(info.length);
         buffer.put((byte) 0);
         buffer.put(info);
