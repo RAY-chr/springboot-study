@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author RAY
@@ -18,50 +19,110 @@ import java.util.concurrent.LinkedBlockingQueue;
  * @since 2020/3/22
  */
 public class FileServer {
-    private static final String remoteHost = "192.168.108.8";
-    private static final String localHost = "127.0.0.1";
-    private static final int bufferSize = 8192;
+
+    private static final String REMOTE_HOST = "192.168.108.8";
+    private static final String LOCAL_HOST = "127.0.0.1";
+    private static final int BUFFER_SIZE = 8192;
     private static final int PORT = 6667;
     private static final ExecutorService SERVICE = Executors.newFixedThreadPool(10);
-    private static final LinkedBlockingQueue<Runnable> READS = new LinkedBlockingQueue<>();
     private ServerSocketChannel serverSocketChannel;
-    private Selector mainSelector;
-    private Selector subSelector;
+    private Handler[] handlers;
+    private AtomicInteger count = new AtomicInteger(0);
 
     public static void main(String[] args) throws IOException {
-        //new FileServer().listen();
-        doListen();
+        FileServer fileServer = new FileServer();
+        fileServer.doListen(3);
     }
 
     public FileServer() {
         try {
             serverSocketChannel = ServerSocketChannel.open();
             serverSocketChannel.configureBlocking(false);
-            serverSocketChannel.socket().bind(new InetSocketAddress(localHost, PORT));
-            System.err.println("[FileServer] 服务器启动成功!");
-            mainSelector = Selector.open();
-            subSelector = Selector.open();
+            String os = System.getProperty("os.name");
+            boolean win = os.toLowerCase().startsWith("win");
+            serverSocketChannel.socket().bind(new InetSocketAddress(win ? LOCAL_HOST : REMOTE_HOST, PORT));
+            System.err.println("[FileServer] 服务器启动成功! 环境 ==> " + os);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static void doListen() {
-        FileServer server = new FileServer();
-        new Thread(() -> {
+    /**
+     * 创建接口客户端的 Acceptor 和 处理读写事件的 Handlers
+     *
+     * @param handlerCount Handlers的数量
+     * @throws IOException IOException
+     */
+    public void doListen(int handlerCount) throws IOException {
+        if (handlerCount <= 0) {
+            throw new IllegalArgumentException("the handlerCount must > 0");
+        }
+        new Thread(new Acceptor(serverSocketChannel), "acceptor").start();
+        handlers = new Handler[handlerCount];
+        for (int i = 0; i < handlerCount; i++) {
+            Selector handler = Selector.open();
+            handlers[i] = new Handler(handler);
+            new Thread(handlers[i], "handler-" + i).start();
+        }
+    }
+
+    /**
+     * 负责接收客户端的连接，然后注册到指定的handlers中
+     */
+    public class Acceptor implements Runnable {
+
+        private ServerSocketChannel serverSocketChannel;
+        private Selector acceptor;
+
+        public Acceptor(ServerSocketChannel serverSocketChannel) throws IOException {
+            this.serverSocketChannel = serverSocketChannel;
+            this.acceptor = Selector.open();
+
+        }
+
+        @Override
+        public void run() {
             try {
-                server.accept();
+                accept(serverSocketChannel, acceptor);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }, "mainSelector").start();
-        new Thread(() -> {
+        }
+
+    }
+
+    /**
+     * 负责专门处理读写事件
+     */
+    public class Handler implements Runnable {
+
+        private Selector handler;
+        private LinkedBlockingQueue<Runnable> CHANNELS_READS;
+
+        public Handler(Selector handler) {
+            this.handler = handler;
+            CHANNELS_READS = new LinkedBlockingQueue<>();
+        }
+
+        @Override
+        public void run() {
             try {
-                server.handle();
+                handle(handler, CHANNELS_READS);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }, "subSelector").start();
+        }
+
+        public void register(SocketChannel socketChannel) {
+            CHANNELS_READS.add(() -> {
+                try {
+                    socketChannel.register(handler, SelectionKey.OP_READ);
+                } catch (ClosedChannelException ignored) {
+                }
+            });
+            handler.wakeup();
+        }
+
     }
 
     /**
@@ -69,12 +130,12 @@ public class FileServer {
      *
      * @throws IOException IOException
      */
-    public void accept() throws IOException {
-        serverSocketChannel.register(mainSelector, SelectionKey.OP_ACCEPT);
+    public void accept(ServerSocketChannel serverSocketChannel, Selector acceptor) throws IOException {
+        serverSocketChannel.register(acceptor, SelectionKey.OP_ACCEPT);
         while (true) {
-            int select = mainSelector.select();
+            int select = acceptor.select();
             if (select > 0) {
-                Iterator<SelectionKey> keyIterator = mainSelector.selectedKeys().iterator();
+                Iterator<SelectionKey> keyIterator = acceptor.selectedKeys().iterator();
                 while (keyIterator.hasNext()) {
                     SelectionKey key = keyIterator.next();
                     //此操作必不可少
@@ -94,13 +155,12 @@ public class FileServer {
                                  */
                                 //subSelector.wakeup();
                                 //socketChannel.register(subSelector, SelectionKey.OP_READ);
-                                READS.add(() -> {
-                                    try {
-                                        socketChannel.register(subSelector, SelectionKey.OP_READ);
-                                    } catch (ClosedChannelException ignored) {
-                                    }
-                                });
-                                subSelector.wakeup();
+                                int countAndIncrement = count.getAndIncrement();
+                                if (countAndIncrement == Integer.MAX_VALUE) {
+                                    count.set(0);
+                                }
+                                int index = countAndIncrement % handlers.length;
+                                handlers[index].register(socketChannel);
                             }
                         } catch (IOException ignored) {
                         }
@@ -115,15 +175,15 @@ public class FileServer {
      *
      * @throws IOException IOException
      */
-    public void handle() throws IOException {
+    public void handle(Selector handler, LinkedBlockingQueue<Runnable> CHANNELS_READS) throws IOException {
         while (true) {
-            int select = subSelector.select();
-            while (READS.peek() != null) {
-                Runnable poll = READS.poll();
+            int select = handler.select();
+            while (CHANNELS_READS.peek() != null) {
+                Runnable poll = CHANNELS_READS.poll();
                 poll.run();
             }
             if (select > 0) {
-                Iterator<SelectionKey> keyIterator = subSelector.selectedKeys().iterator();
+                Iterator<SelectionKey> keyIterator = handler.selectedKeys().iterator();
                 while (keyIterator.hasNext()) {
                     SelectionKey key = keyIterator.next();
                     //此操作必不可少
@@ -161,7 +221,6 @@ public class FileServer {
                             if (socketChannel != null) {
                                 socketChannel.configureBlocking(false);
                                 socketChannel.register(selector, SelectionKey.OP_READ);
-                                selector.wakeup();
                             }
                         } catch (IOException ignored) {
                         }
@@ -172,7 +231,6 @@ public class FileServer {
                         SERVICE.execute(() -> read(key));
                         //read(key);
                     }
-
                 }
             }
         }
@@ -186,7 +244,7 @@ public class FileServer {
      */
     public void read(SelectionKey key) {
         SocketChannel socketChannel = (SocketChannel) key.channel();
-        ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
+        ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
 
         try {
             socketChannel.read(buffer);
@@ -202,11 +260,13 @@ public class FileServer {
         int pathLength;
         byte b;
         byte[] msg;
+        byte isAppend;
         try {
             pathLength = buffer.getInt();
             b = buffer.get();
             msg = new byte[pathLength];
             buffer.get(msg);
+            isAppend = buffer.get();
         } catch (BufferUnderflowException e) {
             String s = "The format of msg is not correct";
             System.err.println(s);
@@ -226,15 +286,27 @@ public class FileServer {
         try {
             if (b == 1) { // 客户端上传文件
                 print("客户端上传的文件路径为 ==> " + targetPath);
+                long existFileLength = 0;
                 try {
-                    fileChannel = new FileOutputStream(targetPath).getChannel();
+                    if (isAppend == 1) {
+                        File file = new File(targetPath);
+                        if (file.exists()) {
+                            existFileLength = file.length();
+                        }
+                        fileChannel = new FileOutputStream(targetPath, true).getChannel();
+                    } else {
+                        fileChannel = new FileOutputStream(targetPath).getChannel();
+                    }
                 } catch (FileNotFoundException e) {
                     writeError("File Not Found", buffer, socketChannel);
                     close(null, socketChannel, key);
                     return;
                 }
-                writeSuccess(buffer, socketChannel);
-                int write = 0;
+                writeSuccess(buffer, socketChannel, isAppend, existFileLength);
+                long write = 0;
+                if (isAppend == 1) {
+                    write = existFileLength;
+                }
                 long start = System.currentTimeMillis();
                 buffer.clear();
                 while (socketChannel.read(buffer) != -1) {
@@ -252,9 +324,24 @@ public class FileServer {
             if (b == 0) {  //客户端下载文件
                 print("客户端下载的文件路径为 ==> " + targetPath);
                 File file;
+                RandomAccessFile randomAccessFile = null;
+                long existFileLength = 0;
                 try {
                     file = new File(targetPath);
-                    fileChannel = new FileInputStream(targetPath).getChannel();
+                    if (isAppend == 1) {
+                        try {
+                            existFileLength = buffer.getLong();
+                        } catch (BufferUnderflowException e) {
+                            writeError("please transfer the existFileLength", buffer, socketChannel);
+                            close(null, socketChannel, key);
+                            return;
+                        }
+                        randomAccessFile = new RandomAccessFile(file, "r");
+                        randomAccessFile.seek(existFileLength);
+                        fileChannel = randomAccessFile.getChannel();
+                    } else {
+                        fileChannel = new FileInputStream(targetPath).getChannel();
+                    }
                 } catch (FileNotFoundException e) {
                     writeError("File Not Found", buffer, socketChannel);
                     close(null, socketChannel, key);
@@ -268,9 +355,15 @@ public class FileServer {
                 buffer.flip();
                 socketChannel.write(buffer);
                 buffer.clear();
-                int totalRead = 0;
+                long totalRead = 0;
+                if (isAppend == 1) {
+                    totalRead = existFileLength;
+                }
                 int read;
-                int write = 0;
+                long write = 0;
+                if (isAppend == 1) {
+                    write = existFileLength;
+                }
                 while ((read = fileChannel.read(buffer)) != -1) {
                     buffer.flip();
                     totalRead += read;
@@ -283,6 +376,9 @@ public class FileServer {
                         write += socketChannel.write(buffer);
                     }
                     buffer.clear();
+                }
+                if (isAppend == 1) {
+                    randomAccessFile.close();
                 }
                 print("服务器一共从[" + targetPath + "]读出 ==> " + totalRead + "字节");
                 print("服务器一共从[" + targetPath + "]写出 ==> " + write + "字节\n");
@@ -331,16 +427,23 @@ public class FileServer {
     }
 
     /**
-     * 客户端请求的路径服务器有则返回此标志
+     * 客户端上传文件时请求的路径服务器有则返回此标志
      *
-     * @param buffer        ByteBuffer
-     * @param socketChannel SocketChannel
+     * @param buffer          ByteBuffer
+     * @param socketChannel   SocketChannel
+     * @param isAppend        客户端上传服务器判断是否有此文件，1表示追加
+     * @param existFileLength 追加的话长度是多少
      * @throws IOException IOException
      */
-    private void writeSuccess(ByteBuffer buffer, SocketChannel socketChannel) throws IOException {
+    private void writeSuccess(ByteBuffer buffer, SocketChannel socketChannel,
+                              byte isAppend, long existFileLength) throws IOException {
         buffer.clear();
         buffer.putInt(1);
         buffer.put((byte) 1);
+        buffer.put(isAppend);
+        if (isAppend == 1) {
+            buffer.putLong(existFileLength);
+        }
         buffer.flip();
         socketChannel.write(buffer);
     }
