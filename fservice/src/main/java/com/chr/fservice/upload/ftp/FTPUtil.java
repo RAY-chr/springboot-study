@@ -22,12 +22,31 @@ public class FTPUtil {
     @Autowired
     private FtpProperties pro;
 
+    /**
+     * 获取FTPClient 可能因为服务器的设置，比如每个ip允许多少个连接导致此方法会阻塞
+     *
+     * @return
+     * @throws IOException
+     */
     public FTPClient getFtpClient() throws IOException {
         FTPClient ftpClient = new FTPClient();
         getFtpClient0(ftpClient);
         return ftpClient;
     }
 
+    /**
+     * ftp.login(username, password)这个登录方法特别慢
+     * <p>
+     * 解决方案：
+     * <p>
+     * vi /etc/vsftpd/vsftpd.conf
+     * <p>
+     * 添加一行reverse_lookup_enable=no
+     * 表示反向解析客户端ip地址不查找dns服务器（因为服务器会确认客户端ip的可靠性）
+     *
+     * @param ftpClient
+     * @throws IOException
+     */
     private void getFtpClient0(FTPClient ftpClient) throws IOException {
         ftpClient.connect(pro.getHost(), pro.getPort());
         ftpClient.login(pro.getUsername(), pro.getPassword());
