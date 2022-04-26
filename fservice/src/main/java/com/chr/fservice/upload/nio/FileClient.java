@@ -1,5 +1,8 @@
 package com.chr.fservice.upload.nio;
 
+
+import com.chr.fservice.ThreadTimeRecorder;
+
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -21,76 +24,89 @@ public class FileClient {
     private static final String SOURCE2 = "C:\\Users\\RAY\\Desktop\\test\\test.txt";
     private static final String TARGET_PATH = "C:\\Users\\RAY\\Desktop\\";
     private static final String TARGET_PATH2 = "C:\\Users\\RAY\\Desktop\\test\\";
-    private static final String LINUX_PATH = "/home/xm/";
+    private static final String LINUX_PATH = "/home/xm/test/";
     private static final String LOCAL_HOST = "127.0.0.1";
     private static final String REMOTE_HOST = "192.168.108.8";
     private SocketChannel socketChannel;
 
     public static void main(String[] args) throws Exception {
-        multiThread();
-        //FileClient.download(source, targetPath + source.substring(source.lastIndexOf("\\") + 1));
-        //FileClient.upload(source, targetPath + source.substring(source.lastIndexOf("\\") + 1));
+        //multiThread();
+        /*FileClient.download(LOCAL_HOST, 6667, SOURCE, TARGET_PATH2 +
+                SOURCE.substring(SOURCE.lastIndexOf("\\") + 1));*/
+        FileClient.upload(LOCAL_HOST, 6667, SOURCE, TARGET_PATH +
+                SOURCE.substring(SOURCE.lastIndexOf("\\") + 1));
     }
 
     public static void multiThread() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
-        long start = System.currentTimeMillis();
+        ThreadTimeRecorder.create();
         new Thread(() -> {
             try {
-                FileClient.upload(SOURCE, LINUX_PATH + SOURCE.substring(SOURCE.lastIndexOf("\\") + 1),
-                        true);
+                FileClient.upload(REMOTE_HOST, 6667, SOURCE, LINUX_PATH +
+                        SOURCE.substring(SOURCE.lastIndexOf("\\") + 1), true);
             } catch (IOException e) {
                 e.printStackTrace();
             }
             latch.countDown();
         }).start();
-        FileClient.download(REMOTE, TARGET_PATH + REMOTE.substring(REMOTE.lastIndexOf("/") + 1),
-                true);
+        FileClient.download(REMOTE_HOST, 6667, REMOTE, TARGET_PATH +
+                REMOTE.substring(REMOTE.lastIndexOf("/") + 1), true);
         latch.await();
-        System.out.println((System.currentTimeMillis() - start));
+        ThreadTimeRecorder.record("both");
+        ThreadTimeRecorder.destroy();
     }
 
-    public FileClient() throws IOException {
+    public FileClient(String host, int port) throws IOException {
         socketChannel = SocketChannel.open();
-        socketChannel.connect(new InetSocketAddress(REMOTE_HOST, 6667));
+        socketChannel.connect(new InetSocketAddress(host, port));
     }
 
     /**
+     * @param host   服务器的host
+     * @param port   服务器的端口
      * @param source 源路径
      * @param remote 服务器路径
      * @throws IOException IOException
      */
-    public static void upload(String source, String remote) throws IOException {
-        upload(source, remote, false);
+    public static void upload(String host, int port, String source, String remote) throws IOException {
+        upload(host, port, source, remote, false);
     }
 
     /**
+     * @param host   服务器的host
+     * @param port   服务器的端口
      * @param source 源路径
      * @param remote 服务器路径
      * @param append 上传文件是否续传
      * @throws IOException IOException
      */
-    public static void upload(String source, String remote, boolean append) throws IOException {
-        new FileClient().upload0(source, remote, append);
+    public static void upload(String host, int port, String source, String remote,
+                              boolean append) throws IOException {
+        new FileClient(host, port).upload0(source, remote, append);
     }
 
     /**
+     * @param host   服务器的host
+     * @param port   服务器的端口
      * @param remote 服务器路径
-     * @param target 服务器路径
+     * @param target 客户端下载路径
      * @throws IOException IOException
      */
-    public static void download(String remote, String target) throws IOException {
-        download(remote, target, false);
+    public static void download(String host, int port, String remote, String target) throws IOException {
+        download(host, port, remote, target, false);
     }
 
     /**
+     * @param host   服务器的host
+     * @param port   服务器的端口
      * @param remote 服务器路径
-     * @param target 服务器路径
+     * @param target 客户端下载路径
      * @param append 下载文件是否续传
      * @throws IOException IOException
      */
-    public static void download(String remote, String target, boolean append) throws IOException {
-        new FileClient().download0(remote, target, append);
+    public static void download(String host, int port, String remote, String target,
+                                boolean append) throws IOException {
+        new FileClient(host, port).download0(remote, target, append);
     }
 
     private void upload0(String source, String remote, boolean append) throws IOException {

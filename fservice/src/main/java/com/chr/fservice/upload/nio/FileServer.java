@@ -40,9 +40,9 @@ public class FileServer {
             serverSocketChannel.configureBlocking(false);
             String os = System.getProperty("os.name");
             boolean win = os.toLowerCase().startsWith("win");
-            serverSocketChannel.socket().bind(new InetSocketAddress(win ? LOCAL_HOST : REMOTE_HOST, PORT));
+            serverSocketChannel.bind(new InetSocketAddress(win ? LOCAL_HOST : REMOTE_HOST, PORT));
             System.err.println("[FileServer] 服务器启动成功! 环境 ==> " + os);
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -77,7 +77,6 @@ public class FileServer {
         public Acceptor(ServerSocketChannel serverSocketChannel) throws IOException {
             this.serverSocketChannel = serverSocketChannel;
             this.acceptor = Selector.open();
-
         }
 
         @Override
@@ -101,7 +100,7 @@ public class FileServer {
 
         public Handler(Selector handler) {
             this.handler = handler;
-            CHANNELS_READS = new LinkedBlockingQueue<>();
+            this.CHANNELS_READS = new LinkedBlockingQueue<>();
         }
 
         @Override
@@ -156,7 +155,7 @@ public class FileServer {
                                 //subSelector.wakeup();
                                 //socketChannel.register(subSelector, SelectionKey.OP_READ);
                                 int countAndIncrement = count.getAndIncrement();
-                                if (countAndIncrement == Integer.MAX_VALUE) {
+                                if (countAndIncrement == handlers.length) {
                                     count.set(0);
                                 }
                                 int index = countAndIncrement % handlers.length;
@@ -178,8 +177,8 @@ public class FileServer {
     public void handle(Selector handler, LinkedBlockingQueue<Runnable> CHANNELS_READS) throws IOException {
         while (true) {
             int select = handler.select();
-            while (CHANNELS_READS.peek() != null) {
-                Runnable poll = CHANNELS_READS.poll();
+            Runnable poll;
+            while ((poll = CHANNELS_READS.poll()) != null) {
                 poll.run();
             }
             if (select > 0) {
@@ -386,8 +385,6 @@ public class FileServer {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            // 调用wakeup，使得选择器上的第一个还没有返回的选择操作立即返回即重新select(使用线程池处理的非必要操作)
-            //key.selector().wakeup();
             close(fileChannel, socketChannel, key);
         }
 
